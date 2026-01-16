@@ -16,13 +16,26 @@ pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Vec<u8> {
 #[cfg(test)]
 mod test {
     use super::*;
-    
+
     #[test]
     fn join_data_from_chunks() {
-        let mut chunks: Vec<Chunk> = vec![{1; 1}];
-        
+        let chunks = vec![
+            Chunk {
+                index: 2,
+                data: b"world".to_vec(),
+            },
+            Chunk {
+                index: 0,
+                data: b"hel".to_vec(),
+            },
+            Chunk {
+                index: 1,
+                data: b"lo ".to_vec(),
+            },
+        ];
+    
         let data = reassemble_chunks(chunks);
-        
-        
+    
+        assert_eq!(data, b"hello world");
     }
 }
