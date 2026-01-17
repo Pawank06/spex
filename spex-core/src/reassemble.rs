@@ -10,7 +10,6 @@ pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Vec<u8> {
     }
     
     result
-    
 }
 
 #[cfg(test)]
