@@ -12,6 +12,7 @@ pub fn chunks_bytes(data: &[u8], chunk_size: usize) -> Vec<Chunk> {
             index: i as u64,
             data: slice.to_vec(),
         })
+        
         .collect()
 }
 
