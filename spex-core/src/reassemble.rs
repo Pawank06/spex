@@ -5,7 +5,7 @@ pub enum ReassembleError {
     DuplicateChunk { index: u64 }
 }
 
-pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassemblerError> {
+pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassembleError> {
     chunks.sort_by_key(|item| item.index);
     
     for (i, chunk)in chunks.iter().enumerate() {
@@ -57,6 +57,5 @@ mod test {
         } else {
             panic!("Expected MissingChunk error");
         }
-
     }
 }
