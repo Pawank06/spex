@@ -1,5 +1,6 @@
 use crate::chunk::Chunk;
 
+#[derive(Debug, PartialEq)] 
 pub enum ReassembleError {
     EmptyInput,
     MissingChunk { expected: u64, found: u64},
@@ -36,33 +37,75 @@ pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassembleEr
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
+    use crate::chunk::Chunk;
 
     #[test]
-    fn join_data_from_chunks() {
+    fn joins_data_from_chunks_in_correct_order() {
         let chunks = vec![
-            Chunk {
-                index: 2,
-                data: b"world".to_vec(),
-            },
-            Chunk {
-                index: 0,
-                data: b"hel".to_vec(),
-            },
-            Chunk {
-                index: 1,
-                data: b"lo ".to_vec(),
-            },
+            Chunk { index: 2, data: b"world".to_vec() },
+            Chunk { index: 0, data: b"hel".to_vec() },
+            Chunk { index: 1, data: b"lo ".to_vec() },
         ];
-    
-        let data = reassemble_chunks(chunks);
-    
-        if let Err(ReassembleError::MissingChunk { expected, found }) = data {
-            assert_eq!(expected, 1);
-            assert_eq!(found, 2);
-        } else {
-            panic!("Expected MissingChunk error");
-        }
+
+        let result = reassemble_chunks(chunks).unwrap();
+
+        assert_eq!(result, b"hello world");
+    }
+
+    #[test]
+    fn fails_on_empty_input() {
+        let chunks = vec![];
+
+        let result = reassemble_chunks(chunks);
+
+        assert!(matches!(result, Err(ReassembleError::EmptyInput)));
+    }
+
+    #[test]
+    fn fails_when_chunk_is_missing() {
+        let chunks = vec![
+            Chunk { index: 0, data: b"hel".to_vec() },
+            Chunk { index: 2, data: b"world".to_vec() },
+        ];
+
+        let result = reassemble_chunks(chunks);
+
+        assert!(matches!(
+            result,
+            Err(ReassembleError::MissingChunk { expected: 1, found: 2 })
+        ));
+    }
+
+    #[test]
+    fn fails_on_duplicate_chunk() {
+        let chunks = vec![
+            Chunk { index: 0, data: b"a".to_vec() },
+            Chunk { index: 1, data: b"b".to_vec() },
+            Chunk { index: 1, data: b"b".to_vec() },
+        ];
+
+        let result = reassemble_chunks(chunks);
+
+        assert!(matches!(
+            result,
+            Err(ReassembleError::DuplicateChunk { index: 1 })
+        ));
+    }
+
+    #[test]
+    fn fails_when_first_chunk_is_not_zero() {
+        let chunks = vec![
+            Chunk { index: 1, data: b"lo ".to_vec() },
+            Chunk { index: 2, data: b"world".to_vec() },
+        ];
+
+        let result = reassemble_chunks(chunks);
+
+        assert!(matches!(
+            result,
+            Err(ReassembleError::MissingChunk { expected: 0, found: 1 })
+        ));
     }
 }
