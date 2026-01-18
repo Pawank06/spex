@@ -1,22 +1,29 @@
 use crate::chunk::Chunk;
 
 pub enum ReassembleError {
+    EmptyInput,
     MissingChunk { expected: u64, found: u64},
     DuplicateChunk { index: u64 }
 }
 
 pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassembleError> {
+    if chunks.is_empty() {
+        return Err(ReassembleError::EmptyInput);
+    }
     chunks.sort_by_key(|item| item.index);
     
-    for (i, chunk)in chunks.iter().enumerate() {
-        let expected_index = i as u64;
+    let mut expected_index = 0;
+    
+    for chunk in &chunks {
+        if chunk.index < expected_index {
+            return Err(ReassembleError::DuplicateChunk { index: chunk.index });
+        }
         
         if chunk.index != expected_index {
-            return Err(ReassembleError::MissingChunk { 
-                expected: expected_index, 
-                found: chunk.index
-            });
+            return  Err(ReassembleError::MissingChunk { expected: expected_index, found: chunk.index });
         }
+        
+        expected_index += 1;
     }
     
     let mut result = Vec::new();
