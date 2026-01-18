@@ -1,6 +1,6 @@
 use crate::chunk::Chunk;
 
-pub enum ReassemblerError {
+pub enum ReassembleError {
     MissingChunk { expected: u64, found: u64},
     DuplicateChunk { index: u64 }
 }
@@ -12,7 +12,7 @@ pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassemblerE
         let expected_index = i as u64;
         
         if chunk.index != expected_index {
-            return Err(ReassemblerError::MissingChunk { 
+            return Err(ReassembleError::MissingChunk { 
                 expected: expected_index, 
                 found: chunk.index
             });
@@ -51,6 +51,12 @@ mod test {
     
         let data = reassemble_chunks(chunks);
     
-        assert_eq!(data, b"hello world");
+        if let Err(ReassembleError::MissingChunk { expected, found }) = data {
+            assert_eq!(expected, 1);
+            assert_eq!(found, 2);
+        } else {
+            panic!("Expected MissingChunk error");
+        }
+
     }
 }
