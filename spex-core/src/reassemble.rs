@@ -1,7 +1,23 @@
 use crate::chunk::Chunk;
 
-pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Vec<u8> {
+pub enum ReassemblerError {
+    MissingChunk { expected: u64, found: u64},
+    DuplicateChunk { index: u64 }
+}
+
+pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassemblerError> {
     chunks.sort_by_key(|item| item.index);
+    
+    for (i, chunk)in chunks.iter().enumerate() {
+        let expected_index = i as u64;
+        
+        if chunk.index != expected_index {
+            return Err(ReassemblerError::MissingChunk { 
+                expected: expected_index, 
+                found: chunk.index
+            });
+        }
+    }
     
     let mut result = Vec::new();
     
@@ -9,7 +25,7 @@ pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Vec<u8> {
         result.extend_from_slice(&chunk.data);
     }
     
-    result
+    Ok(result)
 }
 
 #[cfg(test)]
