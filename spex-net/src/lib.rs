@@ -1,14 +1,13 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+use tokio::time::{sleep, Duration};
+
+pub mod protocol;
+
+pub async fn async_hello() -> String {
+    "hello from async".to_string()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+pub async fn async_wait_and_hello_world() -> String {
+    println!("waiting...");
+    sleep(Duration::from_secs(2)).await;
+    "hello world after waiting".to_string()
 }
