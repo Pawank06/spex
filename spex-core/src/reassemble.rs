@@ -1,10 +1,11 @@
-use crate::chunk::Chunk;
+use crate::{chunk::{Chunk, chunks_bytes}, hash::hash_file, metadata::FileMeta};
 
 #[derive(Debug, PartialEq)] 
 pub enum ReassembleError {
     EmptyInput,
     MissingChunk { expected: u64, found: u64},
-    DuplicateChunk { index: u64 }
+    DuplicateChunk { index: u64 },
+     FileHashMismatch,
 }
 
 pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassembleError> {
@@ -34,6 +35,27 @@ pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassembleEr
     }
     
     Ok(result)
+}
+
+pub fn reassemble_and_verify(
+    meta: &FileMeta,
+    chunks: Vec<Chunk>
+) -> Result<Vec<u8>, ReassembleError> {
+    let data = reassemble_chunks(chunks)?;
+    
+    if data.len() as u64 != meta.file_size {
+        return Err(ReassembleError::FileHashMismatch);
+    }
+    
+    let reconstructed_chunks = chunks_bytes(&data, meta.chunk_size);
+    
+    let file_hash = hash_file(&reconstructed_chunks);
+    
+    if file_hash != meta.file_hash {
+        return  Err(ReassembleError::FileHashMismatch);
+    }
+    
+    Ok(data)
 }
 
 #[cfg(test)]
@@ -107,5 +129,39 @@ mod tests {
             result,
             Err(ReassembleError::MissingChunk { expected: 0, found: 1 })
         ));
+    }
+}
+
+#[cfg(test)]
+mod verified_tests {
+    use super::*;
+    use crate::chunk::chunks_bytes;
+    use crate::metadata::FileMeta;
+
+    #[test]
+    fn verified_reassembly_succeeds_for_valid_file() {
+        let data = b"hello world";
+        let chunk_size = 3;
+        let chunks = chunks_bytes(data, chunk_size);
+        let meta = FileMeta::new(data, chunk_size, &chunks);
+
+        let result = reassemble_and_verify(&meta, chunks).unwrap();
+
+        assert_eq!(result, data);
+    }
+
+    #[test]
+    fn verified_reassembly_fails_on_corruption() {
+        let data = b"hello world";
+        let chunk_size = 3;
+        let mut chunks = chunks_bytes(data, chunk_size);
+
+        chunks[0].data[0] = b'X';
+
+        let meta = FileMeta::new(data, chunk_size, &chunks_bytes(data, chunk_size));
+
+        let result = reassemble_and_verify(&meta, chunks);
+
+        assert!(matches!(result, Err(ReassembleError::FileHashMismatch)));
     }
 }
