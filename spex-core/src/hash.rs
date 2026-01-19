@@ -1,6 +1,6 @@
 use sha2::{Digest, Sha256};
 
-use crate::chunk::Chunk;
+use crate::{chunk::Chunk};
 
 pub type Hash = [u8; 32];
 
@@ -12,6 +12,16 @@ pub fn hash_bytes(data: &[u8]) -> Hash {
 
 pub fn hash_chunk(chunk: &Chunk) -> Hash {
     hash_bytes(&chunk.data)
+}
+
+pub fn hash_file(chunks: &[Chunk]) -> Hash {
+    let mut hasher = Sha256::new();
+    
+    for chunk in chunks {
+        hasher.update(&chunk.data);
+    }
+    
+    hasher.finalize().into()
 }
 
 #[cfg(test)]
@@ -69,6 +79,59 @@ mod tests {
         let hash2 = hash_chunk(&c2);
         
         assert_ne!(hash1, hash2);
+    }  
+}
+
+#[cfg(test)]
+mod file_tests {
+    use super::*;
+    use crate::chunk::Chunk;
+
+    #[test]
+    fn same_file_same_hash() {
+        let chunks = vec![
+            Chunk { index: 0, data: b"hel".to_vec() },
+            Chunk { index: 1, data: b"lo ".to_vec() },
+            Chunk { index: 2, data: b"world".to_vec() },
+        ];
+
+        let h1 = hash_file(&chunks);
+        let h2 = hash_file(&chunks);
+
+        assert_eq!(h1, h2);
     }
-    
+
+    #[test]
+    fn different_file_different_hash() {
+        let chunks1 = vec![
+            Chunk { index: 0, data: b"hello".to_vec() },
+        ];
+
+        let chunks2 = vec![
+            Chunk { index: 0, data: b"world".to_vec() },
+        ];
+
+        let h1 = hash_file(&chunks1);
+        let h2 = hash_file(&chunks2);
+
+        assert_ne!(h1, h2);
+    }
+
+    #[test]
+    fn chunk_order_affects_file_hash() {
+        let chunks1 = vec![
+            Chunk { index: 0, data: b"ab".to_vec() },
+            Chunk { index: 1, data: b"cd".to_vec() },
+        ];
+
+        let chunks2 = vec![
+            Chunk { index: 0, data: b"cd".to_vec() },
+            Chunk { index: 1, data: b"ab".to_vec() },
+        ];
+
+        let h1 = hash_file(&chunks1);
+        let h2 = hash_file(&chunks2);
+
+        assert_ne!(h1, h2);
+    }
 }
