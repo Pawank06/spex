@@ -13,3 +13,13 @@ async fn task_b() {
         sleep(Duration::from_secs(1)).await;
     }
 }
+
+#[tokio::main]
+async fn main() {
+    let a = tokio::spawn(task_a());
+    let b = tokio::spawn(task_b());
+    
+    let _ = tokio::join!(a, b);
+    
+    println!("Both tasks completed");
+}
