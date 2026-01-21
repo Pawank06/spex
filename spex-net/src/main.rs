@@ -1,20 +1,24 @@
 use tokio::sync::mpsc;
 use tokio::time::{sleep, Duration};
 
-#[tokio::main]
-async fn main() {
-    let (tx, mut rx) = mpsc::channel(10);
+use spex_net::protocol::NetMessage;
+use spex_core::chunk::{chunks_bytes, Chunk};
+use spex_core::metadata::FileMeta;
+
+async fn sender(mut tx: mpsc::Sender<NetMessage>) {
+    let data = b"hello world";
+    let chunk_size = 3;
     
-    tokio::spawn(async move {
-        for i in 1..=5 {
-            tx.send(format!("message {i}")).await.unwrap();
-            sleep(Duration::from_secs(1)).await;
-        }
-    });
+    let chunks = chunks_bytes(data, chunk_size);
+    let meta = FileMeta::new(data, chunk_size, &chunks);
     
-    while let Some(msg) = rx.recv().await {
-        println!("recived: {msg}");
+    println!("sender: sending metadata");
+    tx.send(NetMessage::FileMeta(meta)).await.unwrap();
+    
+    for chunk in chunks {
+        println!("sender: sending chunk {}", chunk.index);
+        tx.send(Duration::from_millis(500)).await;
     }
     
-    println!("channel closed")
+    println!("sender: done")
 }
