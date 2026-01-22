@@ -1,11 +1,15 @@
-use std::any::Any;
-
 use tokio::sync::mpsc;
 use tokio::time::{sleep, Duration};
 
 use spex_net::protocol::NetMessage;
 use spex_core::chunk::{chunks_bytes, Chunk};
 use spex_core::metadata::FileMeta;
+use std::collections::HashMap;
+
+struct RecieverState {
+    meta: Option<FileMeta>,
+    chunks: HashMap<u64, Chunk>
+}
 
 async fn sender(mut tx: mpsc::Sender<NetMessage>) {
     let data = b"hello world";
@@ -27,24 +31,57 @@ async fn sender(mut tx: mpsc::Sender<NetMessage>) {
 }
 
 async fn receiver(mut rx: mpsc::Receiver<NetMessage>) {
+    use spex_core::reassemble::reassemble_and_verify;
+    
+    let mut state = RecieverState {
+        meta: None,
+        chunks: HashMap::new(),
+    };
+    
     while let Some(msg) = rx.recv().await {
         match msg {
             NetMessage::FileMeta(meta) => {
-                println!("reciever: got metadata ({} chunks, {} bytes)", meta.total_chunks, meta.file_size);
+                println!("reciever: got metadata ({} chunks)", meta.total_chunks);
+                
+                state.meta = Some(meta);
             }
             
             NetMessage::Chunk(chunk) => {
-                println!("receiver: got chunk {} ({} bytes)",
-                chunk.index,
-                chunk.data.len());
+                println!("receiver: got chunk {}",
+                chunk.index);
+                state.chunks.insert(chunk.index, chunk);
             }
             
             NetMessage::RequestChunk { index } => {
-                println!("reciver: requested chunk {index}");
+                println!("receiver: requested chunk {index}");
             }
         }
     }
-    println!("reciver: channel closed");
+    try_reassemble(&mut state);
+}
+
+fn try_reassemble(state: &mut RecieverState) {
+    let meta = match &state.meta {
+        Some(m) => m,
+        None => return
+    };
+    
+    if state.chunks.iter().len() != meta.total_chunks as usize {
+        return;
+    }
+    
+    println!("receiver: all chunks verified, reassembling...");
+    
+    let mut chunks: Vec<Chunk> = state.chunks.values().cloned().collect();
+    
+    match spex_core::reassemble::reassemble_and_verify(meta, chunks) {
+        Ok(data) => {
+            println!("receiver: file verified and reconstructed ({} bytes)", data.len());
+        }
+        Err(err) => {
+            println!("reciver: verification failed: {:?}", err)
+        }
+    }
 }
 
 #[tokio::main]
