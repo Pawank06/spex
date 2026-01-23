@@ -13,7 +13,12 @@ struct RecieverState {
     chunks: HashMap<u64, Chunk>
 }
 
-async fn sender(mut tx: mpsc::Sender<NetMessage>) {
+async fn sender(mut tx: mpsc::Sender<NetMessage>,
+    mut rx: mpsc::Receiver<NetMessage>,) {
+    use std::collections::HashMap;
+        
+    let mut chunk_store: HashMap<u64, Chunk> = HashMap::new();
+
     let data = b"hello world";
     let chunk_size = 3;
     
@@ -90,10 +95,11 @@ fn try_reassemble(state: &mut RecieverState) {
 
 #[tokio::main]
 async fn main() {
-    let (tx, rx) = mpsc::channel(10);
+    let (tx_to_receiver, rx_from_sender) = mpsc::channel(10);
+    let (tx_to_sender, rx_from_receiver) = mpsc::channel(10);
     
-    let sender_task = tokio::spawn(sender(tx));
-    let receiver_task = tokio::spawn(receiver(rx));
+    let sender_task = tokio::spawn(sender(tx_to_receiver, rx_from_receiver));
+    let receiver_task = tokio::spawn(receiver(rx_from_sender, tx_to_sender));
     
     let _ = tokio::join!(sender_task, receiver_task);
 }
