@@ -8,3 +8,4 @@ spex-core = { path = "../spex-core" }
 tokio = { version = "1", features = ["full"] }
 quinn = "0.10"
 bytes = "1"
+rand = "0.8"

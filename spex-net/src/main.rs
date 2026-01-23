@@ -1,3 +1,5 @@
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use tokio::sync::mpsc;
 use tokio::time::{sleep, Duration};
 
@@ -15,16 +17,18 @@ async fn sender(mut tx: mpsc::Sender<NetMessage>) {
     let data = b"hello world";
     let chunk_size = 3;
     
-    let chunks = chunks_bytes(data, chunk_size);
+    let mut chunks = chunks_bytes(data, chunk_size);
     let meta = FileMeta::new(data, chunk_size, &chunks);
     
     println!("sender: sending metadata");
     tx.send(NetMessage::FileMeta(meta)).await.unwrap();
     
+    chunks.shuffle(&mut thread_rng());
+    
     for chunk in chunks {
         println!("sender: sending chunk {}", chunk.index);
         tx.send(NetMessage::Chunk(chunk)).await.unwrap();
-        sleep(Duration::from_millis(500)).await;
+        sleep(Duration::from_millis(200)).await;
     }
     
     println!("sender: done")
