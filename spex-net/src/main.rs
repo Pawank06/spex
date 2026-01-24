@@ -6,11 +6,12 @@ use tokio::time::{sleep, Duration};
 use spex_net::protocol::NetMessage;
 use spex_core::chunk::{chunks_bytes, Chunk};
 use spex_core::metadata::FileMeta;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 struct RecieverState {
     meta: Option<FileMeta>,
-    chunks: HashMap<u64, Chunk>
+    chunks: HashMap<u64, Chunk>,
+    requested: HashSet<u64>,
 }
 
 async fn sender(mut tx: mpsc::Sender<NetMessage>,
@@ -31,8 +32,20 @@ async fn sender(mut tx: mpsc::Sender<NetMessage>,
     chunks.shuffle(&mut thread_rng());
     
     for chunk in chunks {
-        println!("sender: sending chunk {}", chunk.index);
-        tx.send(NetMessage::Chunk(chunk)).await.unwrap();
+        chunk_store.insert(chunk.index, chunk.clone());
+        
+        while let Some(msg) = rx.recv().await {
+            match msg {
+                NetMessage::RequestChunk { index } => {
+                    if let Some(chunk) = chunk_store.get(&index) {
+                        println!("📤 sender: resending chunk {index}");
+                        tx.send(NetMessage::Chunk(chunk.clone())).await.unwrap();
+                    }
+                }
+                _ => {}
+            }
+        }
+
         sleep(Duration::from_millis(200)).await;
     }
     
@@ -45,6 +58,7 @@ async fn receiver(mut rx: mpsc::Receiver<NetMessage>) {
     let mut state = RecieverState {
         meta: None,
         chunks: HashMap::new(),
+        requested: HashSet::new()
     };
     
     while let Some(msg) = rx.recv().await {
