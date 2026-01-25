@@ -17,7 +17,7 @@ use spex_core::reassemble::reassemble_and_verify;
 
 
 async fn sender(
-    mut tx: mpsc::Sender<NetMessage>,
+    tx: mpsc::Sender<NetMessage>,
     mut rx: mpsc::Receiver<NetMessage>,
 ) {
     let data = b"hello world";
