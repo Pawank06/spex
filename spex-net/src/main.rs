@@ -85,7 +85,6 @@ async fn receiver(
     let retry_handle = tokio::spawn(async move {
         loop {
             sleep(Duration::from_secs(1)).await;
-            // retry logic handled in main loop via shared state
             let _ = &retry_tx;
         }
     });
