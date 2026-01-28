@@ -7,7 +7,7 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 
 use spex_net::protocol::NetMessage;
-use spex_core::chunk::{chunk_bytes, Chunk};
+use spex_core::chunk::{chunks_bytes as chunk_bytes, Chunk};
 use spex_core::metadata::FileMeta;
 use spex_core::reassemble::reassemble_and_verify;
 
