@@ -1,8 +1,11 @@
 use sha2::{Digest, Sha256};
-
+use serde::{Serialize, Deserialize};
 use crate::{chunk::Chunk};
 
 pub type Hash = [u8; 32];
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Hash(pub [u8; 32]);
 
 pub fn hash_bytes(data: &[u8]) -> Hash {
     let mut hasher = Sha256::new();

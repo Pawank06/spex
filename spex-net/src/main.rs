@@ -7,7 +7,7 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 
 use spex_net::protocol::NetMessage;
-use spex_core::chunk::{chunks_bytes, Chunk};
+use spex_core::chunk::{chunk_bytes, Chunk};
 use spex_core::metadata::FileMeta;
 use spex_core::reassemble::reassemble_and_verify;
 
@@ -15,24 +15,25 @@ use spex_core::reassemble::reassemble_and_verify;
 // -------------------- Sender --------------------
 //
 
-
 async fn sender(
-    tx: mpsc::Sender<NetMessage>,
-    mut rx: mpsc::Receiver<NetMessage>,
+    tx: mpsc::Sender<Vec<u8>>,
+    mut rx: mpsc::Receiver<Vec<u8>>,
 ) {
     let data = b"hello world";
     let chunk_size = 3;
 
-    let mut chunks = chunks_bytes(data, chunk_size);
+    let mut chunks = chunk_bytes(data, chunk_size);
     let meta = FileMeta::new(data, chunk_size, &chunks);
 
+    // Store chunks for resend
     let mut chunk_store: HashMap<u64, Chunk> = HashMap::new();
     for chunk in &chunks {
         chunk_store.insert(chunk.index, chunk.clone());
     }
 
     println!("sender: sending metadata");
-    tx.send(NetMessage::FileMeta(meta)).await.unwrap();
+    let meta_bytes = bincode::serialize(&NetMessage::FileMeta(meta)).unwrap();
+    tx.send(meta_bytes).await.unwrap();
 
     chunks.shuffle(&mut thread_rng());
 
@@ -43,15 +44,21 @@ async fn sender(
         }
 
         println!("sender: sending chunk {}", chunk.index);
-        tx.send(NetMessage::Chunk(chunk)).await.unwrap();
+        let bytes = bincode::serialize(&NetMessage::Chunk(chunk)).unwrap();
+        tx.send(bytes).await.unwrap();
+
         sleep(Duration::from_millis(300)).await;
     }
 
-    while let Some(msg) = rx.recv().await {
+    while let Some(bytes) = rx.recv().await {
+        let msg: NetMessage = bincode::deserialize(&bytes).unwrap();
+
         if let NetMessage::RequestChunk { index } = msg {
             if let Some(chunk) = chunk_store.get(&index) {
                 println!("sender: resending chunk {index}");
-                tx.send(NetMessage::Chunk(chunk.clone())).await.unwrap();
+                let bytes =
+                    bincode::serialize(&NetMessage::Chunk(chunk.clone())).unwrap();
+                tx.send(bytes).await.unwrap();
             }
         }
     }
@@ -72,8 +79,8 @@ struct ReceiverState {
 //
 
 async fn receiver(
-    mut rx: mpsc::Receiver<NetMessage>,
-    tx: mpsc::Sender<NetMessage>,
+    mut rx: mpsc::Receiver<Vec<u8>>,
+    tx: mpsc::Sender<Vec<u8>>,
 ) {
     let mut state = ReceiverState {
         meta: None,
@@ -81,15 +88,9 @@ async fn receiver(
         requested: HashSet::new(),
     };
 
-    let retry_tx = tx.clone();
-    let retry_handle = tokio::spawn(async move {
-        loop {
-            sleep(Duration::from_secs(1)).await;
-            let _ = &retry_tx;
-        }
-    });
+    while let Some(bytes) = rx.recv().await {
+        let msg: NetMessage = bincode::deserialize(&bytes).unwrap();
 
-    while let Some(msg) = rx.recv().await {
         match msg {
             NetMessage::FileMeta(meta) => {
                 println!(
@@ -107,33 +108,39 @@ async fn receiver(
             NetMessage::RequestChunk { .. } => {}
         }
 
-        try_request_missing(&mut state, &tx);
+        request_missing_chunks(&mut state, &tx);
         try_reassemble(&state);
     }
-
-    retry_handle.abort();
 }
 
 //
 // -------------------- Helpers --------------------
 //
 
-fn try_request_missing(state: &mut ReceiverState, tx: &mpsc::Sender<NetMessage>) {
+fn request_missing_chunks(
+    state: &mut ReceiverState,
+    tx: &mpsc::Sender<Vec<u8>>,
+) {
     let meta = match &state.meta {
         Some(m) => m,
         None => return,
     };
 
     for index in 0..meta.total_chunks {
-        if !state.chunks.contains_key(&index) && !state.requested.contains(&index) {
+        if !state.chunks.contains_key(&index)
+            && !state.requested.contains(&index)
+        {
             println!("receiver: requesting missing chunk {index}");
             state.requested.insert(index);
 
             let tx = tx.clone();
             tokio::spawn(async move {
-                tx.send(NetMessage::RequestChunk { index })
-                    .await
-                    .unwrap();
+                let bytes = bincode::serialize(
+                    &NetMessage::RequestChunk { index }
+                )
+                .unwrap();
+
+                tx.send(bytes).await.unwrap();
             });
         }
     }
@@ -166,17 +173,16 @@ fn try_reassemble(state: &ReceiverState) {
     }
 }
 
-//
-// -------------------- Main --------------------
-//
 
 #[tokio::main]
 async fn main() {
-    let (tx_to_receiver, rx_from_sender) = mpsc::channel(16);
-    let (tx_to_sender, rx_from_receiver) = mpsc::channel(16);
+    let (tx_to_receiver, rx_from_sender) = mpsc::channel::<Vec<u8>>(16);
+    let (tx_to_sender, rx_from_receiver) = mpsc::channel::<Vec<u8>>(16);
 
-    let sender_task = tokio::spawn(sender(tx_to_receiver, rx_from_receiver));
-    let receiver_task = tokio::spawn(receiver(rx_from_sender, tx_to_sender));
+    let sender_task =
+        tokio::spawn(sender(tx_to_receiver, rx_from_receiver));
+    let receiver_task =
+        tokio::spawn(receiver(rx_from_sender, tx_to_sender));
 
     let _ = tokio::join!(sender_task, receiver_task);
 }
