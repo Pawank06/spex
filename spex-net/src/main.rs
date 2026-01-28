@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
+use std::net::SocketAddr;
+use std::os::macos::raw::stat;
 
-use tokio::sync::mpsc;
+use tokio::net::UdpSocket;
 use tokio::time::{sleep, Duration};
 
 use rand::seq::SliceRandom;
@@ -16,8 +18,8 @@ use spex_core::reassemble::reassemble_and_verify;
 //
 
 async fn sender(
-    tx: mpsc::Sender<Vec<u8>>,
-    mut rx: mpsc::Receiver<Vec<u8>>,
+    socket: UdpSocket,
+    receiver_addr: SocketAddr,
 ) {
     let data = b"hello world";
     let chunk_size = 3;
@@ -33,7 +35,7 @@ async fn sender(
 
     println!("sender: sending metadata");
     let meta_bytes = bincode::serialize(&NetMessage::FileMeta(meta)).unwrap();
-    tx.send(meta_bytes).await.unwrap();
+    socket.send_to(&meta_bytes, receiver_addr).await.unwrap();
 
     chunks.shuffle(&mut thread_rng());
 
@@ -45,20 +47,24 @@ async fn sender(
 
         println!("sender: sending chunk {}", chunk.index);
         let bytes = bincode::serialize(&NetMessage::Chunk(chunk)).unwrap();
-        tx.send(bytes).await.unwrap();
+        socket.send_to(&bytes, receiver_addr).await.unwrap();
 
         sleep(Duration::from_millis(300)).await;
     }
 
-    while let Some(bytes) = rx.recv().await {
-        let msg: NetMessage = bincode::deserialize(&bytes).unwrap();
-
+    let mut buf = [0u8; 2048];
+    loop {
+        let (len, _) = socket.recv_from(&mut buf).await.unwrap();
+        let msg: NetMessage = bincode::deserialize(&buf[..len]).unwrap();
+        
         if let NetMessage::RequestChunk { index } = msg {
             if let Some(chunk) = chunk_store.get(&index) {
                 println!("sender: resending chunk {index}");
-                let bytes =
-                    bincode::serialize(&NetMessage::Chunk(chunk.clone())).unwrap();
-                tx.send(bytes).await.unwrap();
+                let bytes = bincode::serialize(
+                    &NetMessage::Chunk(chunk.clone())
+                ).unwrap();
+                
+                socket.send_to(&bytes, receiver_addr).await.unwrap();
             }
         }
     }
@@ -79,8 +85,8 @@ struct ReceiverState {
 //
 
 async fn receiver(
-    mut rx: mpsc::Receiver<Vec<u8>>,
-    tx: mpsc::Sender<Vec<u8>>,
+    socket: UdpSocket,
+    sender_addr: SocketAddr
 ) {
     let mut state = ReceiverState {
         meta: None,
@@ -88,27 +94,28 @@ async fn receiver(
         requested: HashSet::new(),
     };
 
-    while let Some(bytes) = rx.recv().await {
-        let msg: NetMessage = bincode::deserialize(&bytes).unwrap();
-
+    let mut buf = [0u8; 2048];
+    
+    loop {
+        let (len, _) = socket.recv_from(&mut buf).await.unwrap();
+        
+        let msg: NetMessage =
+            bincode::deserialize(&buf[..len]).unwrap();
+        
         match msg {
             NetMessage::FileMeta(meta) => {
-                println!(
-                    "receiver: got metadata ({} chunks)",
-                    meta.total_chunks
-                );
-                state.meta = Some(meta);
-            }
-
+                println!("receiver: got metadata ({} chunks)", meta.total_chunks);
+            },
+            
             NetMessage::Chunk(chunk) => {
                 println!("receiver: got chunk {}", chunk.index);
                 state.chunks.insert(chunk.index, chunk);
             }
-
+            
             NetMessage::RequestChunk { .. } => {}
         }
-
-        request_missing_chunks(&mut state, &tx);
+        
+        request_missing_chunks(&mut state, &socket, sender_addr).await;
         try_reassemble(&state);
     }
 }
@@ -117,9 +124,10 @@ async fn receiver(
 // -------------------- Helpers --------------------
 //
 
-fn request_missing_chunks(
+async fn request_missing_chunks(
     state: &mut ReceiverState,
-    tx: &mpsc::Sender<Vec<u8>>,
+    socket: &UdpSocket,
+    sender_addr: SocketAddr
 ) {
     let meta = match &state.meta {
         Some(m) => m,
@@ -133,15 +141,11 @@ fn request_missing_chunks(
             println!("receiver: requesting missing chunk {index}");
             state.requested.insert(index);
 
-            let tx = tx.clone();
-            tokio::spawn(async move {
-                let bytes = bincode::serialize(
-                    &NetMessage::RequestChunk { index }
-                )
-                .unwrap();
-
-                tx.send(bytes).await.unwrap();
-            });
+            let bytes = bincode::serialize(
+                &NetMessage::RequestChunk { index }
+            ).unwrap();
+            
+            socket.send_to(&bytes, sender_addr).await.unwrap();
         }
     }
 }
@@ -175,14 +179,19 @@ fn try_reassemble(state: &ReceiverState) {
 
 
 #[tokio::main]
-async fn main() {
-    let (tx_to_receiver, rx_from_sender) = mpsc::channel::<Vec<u8>>(16);
-    let (tx_to_sender, rx_from_receiver) = mpsc::channel::<Vec<u8>>(16);
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let sender_socket = UdpSocket::bind("127.0.0.1:7001").await?;
+    let receiver_socket = UdpSocket::bind("127.0.0.1:7002").await?;
+    
+    let sender_addr = "127.0.0.1:7002".parse().unwrap();
+    let receiver_addr = "127.0.0.1:7001".parse().unwrap();
 
     let sender_task =
-        tokio::spawn(sender(tx_to_receiver, rx_from_receiver));
+        tokio::spawn(sender(sender_socket, sender_addr));
     let receiver_task =
-        tokio::spawn(receiver(rx_from_sender, tx_to_sender));
+        tokio::spawn(receiver(receiver_socket, receiver_addr));
 
     let _ = tokio::join!(sender_task, receiver_task);
+    
+    Ok(())
 }
