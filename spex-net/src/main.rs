@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
-use std::os::macos::raw::stat;
 
 use tokio::net::UdpSocket;
 use tokio::time::{sleep, Duration};
