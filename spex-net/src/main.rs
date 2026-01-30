@@ -12,10 +12,6 @@ use spex_core::chunk::{chunks_bytes as chunk_bytes, Chunk};
 use spex_core::metadata::FileMeta;
 use spex_core::reassemble::reassemble_and_verify;
 
-//
-// -------------------- Sender --------------------
-//
-
 async fn sender(
     socket: UdpSocket,
     receiver_addr: SocketAddr,
@@ -26,7 +22,6 @@ async fn sender(
     let mut chunks = chunk_bytes(data, chunk_size);
     let meta = FileMeta::new(data, chunk_size, &chunks);
 
-    // Store chunks for resend
     let mut chunk_store: HashMap<u64, Chunk> = HashMap::new();
     for chunk in &chunks {
         chunk_store.insert(chunk.index, chunk.clone());
