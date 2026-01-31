@@ -64,19 +64,11 @@ async fn sender(
     }
 }
 
-//
-// -------------------- Receiver State --------------------
-//
-
 struct ReceiverState {
     meta: Option<FileMeta>,
     chunks: HashMap<u64, Chunk>,
     requested: HashSet<u64>,
 }
-
-//
-// -------------------- Receiver --------------------
-//
 
 async fn receiver(
     socket: UdpSocket,
@@ -113,10 +105,6 @@ async fn receiver(
         try_reassemble(&state);
     }
 }
-
-//
-// -------------------- Helpers --------------------
-//
 
 async fn request_missing_chunks(
     state: &mut ReceiverState,
