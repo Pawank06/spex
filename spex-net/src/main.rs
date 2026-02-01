@@ -16,7 +16,7 @@ async fn sender(
     socket: UdpSocket,
     receiver_addr: SocketAddr,
 ) {
-    let data = b"hello world";
+    let data = b"hello rust";
     let chunk_size = 3;
 
     let mut chunks = chunk_bytes(data, chunk_size);
