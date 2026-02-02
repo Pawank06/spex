@@ -53,7 +53,7 @@ async fn sender(
         
         if let NetMessage::RequestChunk { index } = msg {
             if let Some(chunk) = chunk_store.get(&index) {
-                println!("sender: resending chunk {index}");
+                println!("sender: resending chunk {}", index);
                 let bytes = bincode::serialize(
                     &NetMessage::Chunk(chunk.clone())
                 ).unwrap();
