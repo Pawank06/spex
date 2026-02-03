@@ -142,7 +142,7 @@ fn try_reassemble(state: &ReceiverState) {
         return;
     }
 
-    println!("receiver: all chunks received, reassembling…");
+    println!("receiver: all chunks received, reassembling");
 
     let chunks: Vec<Chunk> = state.chunks.values().cloned().collect();
 
