@@ -9,6 +9,11 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Cmd {
-    Send,
+    Send {
+        #[arg(long, default_value = "127.0.0.1:7001")]
+        bind: String,
+        #[arg(long, default_value = "127.0.0.1:7002")]
+        peer: String,
+    },
     Recv,
 }

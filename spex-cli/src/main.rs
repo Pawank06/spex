@@ -7,7 +7,7 @@ fn main() {
     let args = Cli::parse();
 
     match args.cmd {
-        Cmd::Send => println!("send"),
+        Cmd::Send { bind, peer } => println!("send {bind} -> {peer}"),
         Cmd::Recv => println!("recv"),
     }
 }
