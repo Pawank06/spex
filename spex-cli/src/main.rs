@@ -8,6 +8,6 @@ fn main() {
 
     match args.cmd {
         Cmd::Send { bind, peer } => println!("send {bind} -> {peer}"),
-        Cmd::Recv => println!("recv"),
+        Cmd::Recv { bind, peer } => println!("recv {bind} <- {peer}"),
     }
 }

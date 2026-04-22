@@ -15,5 +15,10 @@ pub enum Cmd {
         #[arg(long, default_value = "127.0.0.1:7002")]
         peer: String,
     },
-    Recv,
+    Recv {
+        #[arg(long, default_value = "127.0.0.1:7002")]
+        bind: String,
+        #[arg(long, default_value = "127.0.0.1:7001")]
+        peer: String,
+    },
 }
