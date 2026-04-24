@@ -9,18 +9,30 @@ use spex_core::reassemble::reassemble_and_verify;
 
 use crate::protocol::NetMessage;
 
-pub struct State {
+pub struct ReceiverState {
     pub meta: Option<FileMeta>,
     pub chunks: HashMap<u64, Chunk>,
     pub requested: HashSet<u64>,
 }
 
+impl ReceiverState {
+    pub fn new() -> Self {
+        Self {
+            meta: None,
+            chunks: HashMap::new(),
+            requested: HashSet::new(),
+        }
+    }
+}
+
+impl Default for ReceiverState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub async fn run(socket: UdpSocket, sender_addr: SocketAddr) {
-    let mut state = State {
-        meta: None,
-        chunks: HashMap::new(),
-        requested: HashSet::new(),
-    };
+    let mut state = ReceiverState::new();
 
     let mut buf = [0u8; 2048];
 
@@ -49,7 +61,7 @@ pub async fn run(socket: UdpSocket, sender_addr: SocketAddr) {
 }
 
 async fn request_missing(
-    state: &mut State,
+    state: &mut ReceiverState,
     socket: &UdpSocket,
     sender_addr: SocketAddr,
 ) {
@@ -74,7 +86,7 @@ async fn request_missing(
     }
 }
 
-fn try_reassemble(state: &State) {
+fn try_reassemble(state: &ReceiverState) {
     let meta = match &state.meta {
         Some(m) => m,
         None => return,
