@@ -45,6 +45,7 @@ pub async fn run(socket: UdpSocket, sender_addr: SocketAddr) {
         match msg {
             NetMessage::FileMeta(meta) => {
                 println!("receiver: got metadata ({} chunks)", meta.total_chunks);
+                state.meta = Some(meta);
             },
 
             NetMessage::Chunk(chunk) => {
