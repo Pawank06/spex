@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use tokio::net::UdpSocket;
 use tokio::time::{sleep, Duration};
@@ -8,16 +9,17 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 
 use spex_core::chunk::{chunks_bytes as chunk_bytes, Chunk};
+use spex_core::io::read_file;
 use spex_core::metadata::FileMeta;
 
 use crate::protocol::NetMessage;
 
-pub async fn run(socket: UdpSocket, receiver_addr: SocketAddr) {
-    let data = b"hello rust";
-    let chunk_size = 3;
+pub async fn run(socket: UdpSocket, receiver_addr: SocketAddr, path: PathBuf) {
+    let chunk_size = 1024;
+    let data = read_file(&path).expect("failed to read file");
 
-    let mut chunks = chunk_bytes(data, chunk_size);
-    let meta = FileMeta::new(data, chunk_size, &chunks);
+    let mut chunks = chunk_bytes(&data, chunk_size);
+    let meta = FileMeta::new(&data, chunk_size, &chunks);
 
     let mut chunk_store: HashMap<u64, Chunk> = HashMap::new();
     for chunk in &chunks {
@@ -31,16 +33,11 @@ pub async fn run(socket: UdpSocket, receiver_addr: SocketAddr) {
     chunks.shuffle(&mut thread_rng());
 
     for chunk in chunks {
-        if chunk.index == 1 {
-            println!("sender: intentionally dropping chunk {}", chunk.index);
-            continue;
-        }
-
         println!("sender: sending chunk {}", chunk.index);
         let bytes = bincode::serialize(&NetMessage::Chunk(chunk)).unwrap();
         socket.send_to(&bytes, receiver_addr).await.unwrap();
 
-        sleep(Duration::from_millis(300)).await;
+        sleep(Duration::from_millis(50)).await;
     }
 
     let mut buf = [0u8; 2048];
