@@ -1,4 +1,5 @@
 pub mod chunk;
-pub mod reassemble;
 pub mod hash;
+pub mod io;
 pub mod metadata;
+pub mod reassemble;
