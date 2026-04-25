@@ -1,9 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use tokio::net::UdpSocket;
 
 use spex_core::chunk::Chunk;
+use spex_core::io::write_file;
 use spex_core::metadata::FileMeta;
 use spex_core::reassemble::reassemble_and_verify;
 
@@ -31,7 +33,7 @@ impl Default for ReceiverState {
     }
 }
 
-pub async fn run(socket: UdpSocket, sender_addr: SocketAddr) {
+pub async fn run(socket: UdpSocket, sender_addr: SocketAddr, out_path: PathBuf) {
     let mut state = ReceiverState::new();
 
     let mut buf = [0u8; 2048];
@@ -57,7 +59,9 @@ pub async fn run(socket: UdpSocket, sender_addr: SocketAddr) {
         }
 
         request_missing(&mut state, &socket, sender_addr).await;
-        try_reassemble(&state);
+        if try_reassemble(&state, &out_path) {
+            return;
+        }
     }
 }
 
@@ -87,14 +91,14 @@ async fn request_missing(
     }
 }
 
-fn try_reassemble(state: &ReceiverState) {
+fn try_reassemble(state: &ReceiverState, out_path: &std::path::Path) -> bool {
     let meta = match &state.meta {
         Some(m) => m,
-        None => return,
+        None => return false,
     };
 
     if state.chunks.len() != meta.total_chunks as usize {
-        return;
+        return false;
     }
 
     println!("receiver: all chunks received, reassembling");
@@ -103,13 +107,17 @@ fn try_reassemble(state: &ReceiverState) {
 
     match reassemble_and_verify(meta, chunks) {
         Ok(data) => {
+            write_file(out_path, &data).expect("failed to write output");
             println!(
-                "receiver: file verified and reconstructed ({} bytes)",
-                data.len()
+                "receiver: wrote {} bytes to {}",
+                data.len(),
+                out_path.display()
             );
+            true
         }
         Err(err) => {
             println!("receiver: verification failed: {:?}", err);
+            false
         }
     }
 }
