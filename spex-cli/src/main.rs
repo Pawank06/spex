@@ -2,12 +2,36 @@ mod cli;
 
 use clap::Parser;
 use cli::{Cli, Cmd};
+use tokio::net::UdpSocket;
 
-fn main() {
+use spex_net::config::Config;
+use spex_net::{receiver, sender};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Cli::parse();
 
     match args.cmd {
-        Cmd::Send { bind, peer } => println!("send {bind} -> {peer}"),
-        Cmd::Recv { bind, peer } => println!("recv {bind} <- {peer}"),
+        Cmd::Send {
+            bind,
+            peer,
+            file,
+            chunk_size,
+        } => {
+            let socket = UdpSocket::bind(&bind).await?;
+            let peer_addr = peer.parse()?;
+            let cfg = Config {
+                chunk_size,
+                ..Config::default()
+            };
+            sender::run(socket, peer_addr, file, cfg).await;
+        }
+        Cmd::Recv { bind, peer, out } => {
+            let socket = UdpSocket::bind(&bind).await?;
+            let peer_addr = peer.parse()?;
+            receiver::run(socket, peer_addr, out).await;
+        }
     }
+
+    Ok(())
 }
