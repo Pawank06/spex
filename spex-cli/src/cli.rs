@@ -20,6 +20,8 @@ pub enum Cmd {
         file: PathBuf,
         #[arg(long, default_value_t = 1024)]
         chunk_size: usize,
+        #[arg(long, default_value_t = 50)]
+        delay_ms: u64,
     },
     Recv {
         #[arg(long, default_value = "127.0.0.1:7002")]

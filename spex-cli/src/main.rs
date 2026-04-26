@@ -17,12 +17,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             peer,
             file,
             chunk_size,
+            delay_ms,
         } => {
             let socket = UdpSocket::bind(&bind).await?;
             let peer_addr = peer.parse()?;
             let cfg = Config {
                 chunk_size,
-                ..Config::default()
+                send_delay_ms: delay_ms,
             };
             sender::run(socket, peer_addr, file, cfg).await;
         }
