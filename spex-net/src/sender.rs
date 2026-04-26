@@ -12,14 +12,19 @@ use spex_core::chunk::{chunks_bytes as chunk_bytes, Chunk};
 use spex_core::io::read_file;
 use spex_core::metadata::FileMeta;
 
+use crate::config::Config;
 use crate::protocol::NetMessage;
 
-pub async fn run(socket: UdpSocket, receiver_addr: SocketAddr, path: PathBuf) {
-    let chunk_size = 1024;
+pub async fn run(
+    socket: UdpSocket,
+    receiver_addr: SocketAddr,
+    path: PathBuf,
+    cfg: Config,
+) {
     let data = read_file(&path).expect("failed to read file");
 
-    let mut chunks = chunk_bytes(&data, chunk_size);
-    let meta = FileMeta::new(&data, chunk_size, &chunks);
+    let mut chunks = chunk_bytes(&data, cfg.chunk_size);
+    let meta = FileMeta::new(&data, cfg.chunk_size, &chunks);
 
     let mut chunk_store: HashMap<u64, Chunk> = HashMap::new();
     for chunk in &chunks {
@@ -37,7 +42,7 @@ pub async fn run(socket: UdpSocket, receiver_addr: SocketAddr, path: PathBuf) {
         let bytes = bincode::serialize(&NetMessage::Chunk(chunk)).unwrap();
         socket.send_to(&bytes, receiver_addr).await.unwrap();
 
-        sleep(Duration::from_millis(50)).await;
+        sleep(Duration::from_millis(cfg.send_delay_ms)).await;
     }
 
     let mut buf = [0u8; 2048];
