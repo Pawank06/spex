@@ -13,6 +13,7 @@ use spex_core::io::read_file;
 use spex_core::metadata::FileMeta;
 
 use crate::config::Config;
+use crate::error::Result;
 use crate::protocol::NetMessage;
 
 pub async fn run(
@@ -20,8 +21,8 @@ pub async fn run(
     receiver_addr: SocketAddr,
     path: PathBuf,
     cfg: Config,
-) {
-    let data = read_file(&path).expect("failed to read file");
+) -> Result<()> {
+    let data = read_file(&path)?;
 
     let mut chunks = chunk_bytes(&data, cfg.chunk_size);
     let meta = FileMeta::new(&data, cfg.chunk_size, &chunks);
@@ -32,32 +33,32 @@ pub async fn run(
     }
 
     println!("sender: sending metadata");
-    let meta_bytes = bincode::serialize(&NetMessage::FileMeta(meta)).unwrap();
-    socket.send_to(&meta_bytes, receiver_addr).await.unwrap();
+    let meta_bytes = bincode::serialize(&NetMessage::FileMeta(meta))?;
+    socket.send_to(&meta_bytes, receiver_addr).await?;
 
     chunks.shuffle(&mut thread_rng());
 
     for chunk in chunks {
         println!("sender: sending chunk {}", chunk.index);
-        let bytes = bincode::serialize(&NetMessage::Chunk(chunk)).unwrap();
-        socket.send_to(&bytes, receiver_addr).await.unwrap();
+        let bytes = bincode::serialize(&NetMessage::Chunk(chunk))?;
+        socket.send_to(&bytes, receiver_addr).await?;
 
         sleep(Duration::from_millis(cfg.send_delay_ms)).await;
     }
 
     let mut buf = [0u8; 2048];
     loop {
-        let (len, _) = socket.recv_from(&mut buf).await.unwrap();
-        let msg: NetMessage = bincode::deserialize(&buf[..len]).unwrap();
+        let (len, _) = socket.recv_from(&mut buf).await?;
+        let msg: NetMessage = bincode::deserialize(&buf[..len])?;
 
         if let NetMessage::RequestChunk { index } = msg {
             if let Some(chunk) = chunk_store.get(&index) {
                 println!("sender: resending chunk {}", index);
                 let bytes = bincode::serialize(
                     &NetMessage::Chunk(chunk.clone())
-                ).unwrap();
+                )?;
 
-                socket.send_to(&bytes, receiver_addr).await.unwrap();
+                socket.send_to(&bytes, receiver_addr).await?;
             }
         }
     }
