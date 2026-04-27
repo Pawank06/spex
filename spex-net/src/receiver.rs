@@ -9,6 +9,7 @@ use spex_core::io::write_file;
 use spex_core::metadata::FileMeta;
 use spex_core::reassemble::reassemble_and_verify;
 
+use crate::error::Result;
 use crate::protocol::NetMessage;
 
 pub struct ReceiverState {
@@ -33,22 +34,21 @@ impl Default for ReceiverState {
     }
 }
 
-pub async fn run(socket: UdpSocket, sender_addr: SocketAddr, out_path: PathBuf) {
+pub async fn run(socket: UdpSocket, sender_addr: SocketAddr, out_path: PathBuf) -> Result<()> {
     let mut state = ReceiverState::new();
 
     let mut buf = [0u8; 2048];
 
     loop {
-        let (len, _) = socket.recv_from(&mut buf).await.unwrap();
+        let (len, _) = socket.recv_from(&mut buf).await?;
 
-        let msg: NetMessage =
-            bincode::deserialize(&buf[..len]).unwrap();
+        let msg: NetMessage = bincode::deserialize(&buf[..len])?;
 
         match msg {
             NetMessage::FileMeta(meta) => {
                 println!("receiver: got metadata ({} chunks)", meta.total_chunks);
                 state.meta = Some(meta);
-            },
+            }
 
             NetMessage::Chunk(chunk) => {
                 println!("receiver: got chunk {}", chunk.index);
@@ -58,9 +58,9 @@ pub async fn run(socket: UdpSocket, sender_addr: SocketAddr, out_path: PathBuf) 
             NetMessage::RequestChunk { .. } => {}
         }
 
-        request_missing(&mut state, &socket, sender_addr).await;
-        if try_reassemble(&state, &out_path) {
-            return;
+        request_missing(&mut state, &socket, sender_addr).await?;
+        if try_reassemble(&state, &out_path)? {
+            return Ok(());
         }
     }
 }
@@ -69,55 +69,47 @@ async fn request_missing(
     state: &mut ReceiverState,
     socket: &UdpSocket,
     sender_addr: SocketAddr,
-) {
+) -> Result<()> {
     let meta = match &state.meta {
         Some(m) => m,
-        None => return,
+        None => return Ok(()),
     };
 
     for index in 0..meta.total_chunks {
-        if !state.chunks.contains_key(&index)
-            && !state.requested.contains(&index)
-        {
+        if !state.chunks.contains_key(&index) && !state.requested.contains(&index) {
             println!("receiver: requesting missing chunk {index}");
             state.requested.insert(index);
 
-            let bytes = bincode::serialize(
-                &NetMessage::RequestChunk { index }
-            ).unwrap();
+            let bytes = bincode::serialize(&NetMessage::RequestChunk { index })?;
 
-            socket.send_to(&bytes, sender_addr).await.unwrap();
+            socket.send_to(&bytes, sender_addr).await?;
         }
     }
+
+    Ok(())
 }
 
-fn try_reassemble(state: &ReceiverState, out_path: &std::path::Path) -> bool {
+fn try_reassemble(state: &ReceiverState, out_path: &std::path::Path) -> Result<bool> {
     let meta = match &state.meta {
         Some(m) => m,
-        None => return false,
+        None => return Ok(false),
     };
 
     if state.chunks.len() != meta.total_chunks as usize {
-        return false;
+        return Ok(false);
     }
 
     println!("receiver: all chunks received, reassembling");
 
     let chunks: Vec<Chunk> = state.chunks.values().cloned().collect();
+    let data = reassemble_and_verify(meta, chunks)?;
 
-    match reassemble_and_verify(meta, chunks) {
-        Ok(data) => {
-            write_file(out_path, &data).expect("failed to write output");
-            println!(
-                "receiver: wrote {} bytes to {}",
-                data.len(),
-                out_path.display()
-            );
-            true
-        }
-        Err(err) => {
-            println!("receiver: verification failed: {:?}", err);
-            false
-        }
-    }
+    write_file(out_path, &data)?;
+    println!(
+        "receiver: wrote {} bytes to {}",
+        data.len(),
+        out_path.display()
+    );
+
+    Ok(true)
 }
