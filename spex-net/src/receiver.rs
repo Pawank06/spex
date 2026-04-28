@@ -9,6 +9,8 @@ use spex_core::io::write_file;
 use spex_core::metadata::FileMeta;
 use spex_core::reassemble::reassemble_and_verify;
 
+use tracing::{debug, info};
+
 use crate::error::Result;
 use crate::protocol::NetMessage;
 
@@ -46,12 +48,12 @@ pub async fn run(socket: UdpSocket, sender_addr: SocketAddr, out_path: PathBuf) 
 
         match msg {
             NetMessage::FileMeta(meta) => {
-                println!("receiver: got metadata ({} chunks)", meta.total_chunks);
+                info!(chunks = meta.total_chunks, "got metadata");
                 state.meta = Some(meta);
             }
 
             NetMessage::Chunk(chunk) => {
-                println!("receiver: got chunk {}", chunk.index);
+                debug!(index = chunk.index, "got chunk");
                 state.chunks.insert(chunk.index, chunk);
             }
 
@@ -77,7 +79,7 @@ async fn request_missing(
 
     for index in 0..meta.total_chunks {
         if !state.chunks.contains_key(&index) && !state.requested.contains(&index) {
-            println!("receiver: requesting missing chunk {index}");
+            debug!(index, "requesting missing chunk");
             state.requested.insert(index);
 
             let bytes = bincode::serialize(&NetMessage::RequestChunk { index })?;
@@ -99,17 +101,13 @@ fn try_reassemble(state: &ReceiverState, out_path: &std::path::Path) -> Result<b
         return Ok(false);
     }
 
-    println!("receiver: all chunks received, reassembling");
+    info!("all chunks received, reassembling");
 
     let chunks: Vec<Chunk> = state.chunks.values().cloned().collect();
     let data = reassemble_and_verify(meta, chunks)?;
 
     write_file(out_path, &data)?;
-    println!(
-        "receiver: wrote {} bytes to {}",
-        data.len(),
-        out_path.display()
-    );
+    info!(bytes = data.len(), path = %out_path.display(), "wrote output");
 
     Ok(true)
 }
