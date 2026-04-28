@@ -7,6 +7,7 @@ use tokio::time::{sleep, Duration};
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use tracing::{debug, info};
 
 use spex_core::chunk::{chunks_bytes as chunk_bytes, Chunk};
 use spex_core::io::read_file;
@@ -32,14 +33,14 @@ pub async fn run(
         chunk_store.insert(chunk.index, chunk.clone());
     }
 
-    println!("sender: sending metadata");
+    info!("sending metadata");
     let meta_bytes = bincode::serialize(&NetMessage::FileMeta(meta))?;
     socket.send_to(&meta_bytes, receiver_addr).await?;
 
     chunks.shuffle(&mut thread_rng());
 
     for chunk in chunks {
-        println!("sender: sending chunk {}", chunk.index);
+        debug!(index = chunk.index, "sending chunk");
         let bytes = bincode::serialize(&NetMessage::Chunk(chunk))?;
         socket.send_to(&bytes, receiver_addr).await?;
 
@@ -53,7 +54,7 @@ pub async fn run(
 
         if let NetMessage::RequestChunk { index } = msg {
             if let Some(chunk) = chunk_store.get(&index) {
-                println!("sender: resending chunk {}", index);
+                debug!(index, "resending chunk");
                 let bytes = bincode::serialize(
                     &NetMessage::Chunk(chunk.clone())
                 )?;
