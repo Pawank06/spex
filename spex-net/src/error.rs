@@ -10,6 +10,9 @@ pub enum NetError {
 
     #[error("reassembly failed: {0:?}")]
     Reassemble(spex_core::reassemble::ReassembleError),
+
+    #[error("max retries exhausted")]
+    RetriesExhausted,
 }
 
 impl From<spex_core::reassemble::ReassembleError> for NetError {

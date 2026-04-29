@@ -78,7 +78,29 @@ pub async fn run(
         if try_reassemble(&state, &out_path)? {
             return Ok(());
         }
+        if all_attempts_exhausted(&state, &cfg) {
+            return Err(crate::error::NetError::RetriesExhausted);
+        }
     }
+}
+
+fn all_attempts_exhausted(state: &ReceiverState, cfg: &Config) -> bool {
+    let total = match &state.meta {
+        Some(m) => m.total_chunks,
+        None => return false,
+    };
+
+    let outstanding = total as usize - state.chunks.len();
+    if outstanding == 0 {
+        return false;
+    }
+
+    state
+        .pending
+        .values()
+        .filter(|p| p.attempts >= cfg.max_retries)
+        .count()
+        >= outstanding
 }
 
 async fn request_missing(
