@@ -31,6 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let cfg = Config {
                 chunk_size,
                 send_delay_ms: delay_ms,
+                ..Config::default()
             };
             sender::run(socket, peer_addr, file, cfg).await?;
         }

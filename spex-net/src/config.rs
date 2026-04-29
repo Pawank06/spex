@@ -4,6 +4,8 @@ use std::net::SocketAddr;
 pub struct Config {
     pub chunk_size: usize,
     pub send_delay_ms: u64,
+    pub retry_after_ms: u64,
+    pub max_retries: u32,
 }
 
 impl Default for Config {
@@ -11,6 +13,8 @@ impl Default for Config {
         Self {
             chunk_size: 1024,
             send_delay_ms: 50,
+            retry_after_ms: 200,
+            max_retries: 5,
         }
     }
 }
