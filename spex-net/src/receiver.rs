@@ -102,8 +102,9 @@ async fn request_missing(
 
         let entry = state.pending.entry(index).or_default();
 
+        let backoff = retry_after * (1 << entry.attempts.min(5));
         let due = match entry.last_request {
-            Some(t) => now.duration_since(t) >= retry_after,
+            Some(t) => now.duration_since(t) >= backoff,
             None => true,
         };
 
