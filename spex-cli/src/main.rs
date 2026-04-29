@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Cmd::Recv { bind, peer, out } => {
             let socket = UdpSocket::bind(&bind).await?;
             let peer_addr = peer.parse()?;
-            receiver::run(socket, peer_addr, out).await?;
+            receiver::run(socket, peer_addr, out, Config::default()).await?;
         }
     }
 

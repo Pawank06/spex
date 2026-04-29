@@ -1,6 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::time::Instant;
 
 use tokio::net::UdpSocket;
 
@@ -9,15 +10,22 @@ use spex_core::io::write_file;
 use spex_core::metadata::FileMeta;
 use spex_core::reassemble::reassemble_and_verify;
 
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
+use crate::config::Config;
 use crate::error::Result;
 use crate::protocol::NetMessage;
+
+#[derive(Debug, Default)]
+pub struct PendingChunk {
+    pub last_request: Option<Instant>,
+    pub attempts: u32,
+}
 
 pub struct ReceiverState {
     pub meta: Option<FileMeta>,
     pub chunks: HashMap<u64, Chunk>,
-    pub requested: HashSet<u64>,
+    pub pending: HashMap<u64, PendingChunk>,
 }
 
 impl ReceiverState {
@@ -25,7 +33,7 @@ impl ReceiverState {
         Self {
             meta: None,
             chunks: HashMap::new(),
-            requested: HashSet::new(),
+            pending: HashMap::new(),
         }
     }
 }
@@ -36,7 +44,12 @@ impl Default for ReceiverState {
     }
 }
 
-pub async fn run(socket: UdpSocket, sender_addr: SocketAddr, out_path: PathBuf) -> Result<()> {
+pub async fn run(
+    socket: UdpSocket,
+    sender_addr: SocketAddr,
+    out_path: PathBuf,
+    cfg: Config,
+) -> Result<()> {
     let mut state = ReceiverState::new();
 
     let mut buf = [0u8; 2048];
@@ -54,13 +67,14 @@ pub async fn run(socket: UdpSocket, sender_addr: SocketAddr, out_path: PathBuf) 
 
             NetMessage::Chunk(chunk) => {
                 debug!(index = chunk.index, "got chunk");
+                state.pending.remove(&chunk.index);
                 state.chunks.insert(chunk.index, chunk);
             }
 
             NetMessage::RequestChunk { .. } => {}
         }
 
-        request_missing(&mut state, &socket, sender_addr).await?;
+        request_missing(&mut state, &socket, sender_addr, &cfg).await?;
         if try_reassemble(&state, &out_path)? {
             return Ok(());
         }
@@ -71,21 +85,43 @@ async fn request_missing(
     state: &mut ReceiverState,
     socket: &UdpSocket,
     sender_addr: SocketAddr,
+    cfg: &Config,
 ) -> Result<()> {
-    let meta = match &state.meta {
-        Some(m) => m,
+    let total_chunks = match &state.meta {
+        Some(m) => m.total_chunks,
         None => return Ok(()),
     };
 
-    for index in 0..meta.total_chunks {
-        if !state.chunks.contains_key(&index) && !state.requested.contains(&index) {
-            debug!(index, "requesting missing chunk");
-            state.requested.insert(index);
+    let now = Instant::now();
+    let retry_after = std::time::Duration::from_millis(cfg.retry_after_ms);
 
-            let bytes = bincode::serialize(&NetMessage::RequestChunk { index })?;
-
-            socket.send_to(&bytes, sender_addr).await?;
+    for index in 0..total_chunks {
+        if state.chunks.contains_key(&index) {
+            continue;
         }
+
+        let entry = state.pending.entry(index).or_default();
+
+        let due = match entry.last_request {
+            Some(t) => now.duration_since(t) >= retry_after,
+            None => true,
+        };
+
+        if !due {
+            continue;
+        }
+
+        if entry.attempts >= cfg.max_retries {
+            warn!(index, "giving up on chunk");
+            continue;
+        }
+
+        debug!(index, attempt = entry.attempts + 1, "requesting chunk");
+        entry.last_request = Some(now);
+        entry.attempts += 1;
+
+        let bytes = bincode::serialize(&NetMessage::RequestChunk { index })?;
+        socket.send_to(&bytes, sender_addr).await?;
     }
 
     Ok(())
