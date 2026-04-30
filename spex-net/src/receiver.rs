@@ -66,9 +66,24 @@ pub async fn run(
             }
 
             NetMessage::Chunk(chunk) => {
+                if state.chunks.contains_key(&chunk.index) {
+                    debug!(index = chunk.index, "duplicate chunk, ignoring");
+                    continue;
+                }
                 debug!(index = chunk.index, "got chunk");
                 state.pending.remove(&chunk.index);
                 state.chunks.insert(chunk.index, chunk);
+
+                if let Some(meta) = &state.meta {
+                    info!(
+                        progress = format!(
+                            "{}/{}",
+                            state.chunks.len(),
+                            meta.total_chunks
+                        ),
+                        "chunk progress"
+                    );
+                }
             }
 
             NetMessage::RequestChunk { .. } => {}
