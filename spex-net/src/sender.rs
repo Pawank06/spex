@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use tokio::net::UdpSocket;
 use tokio::time::{sleep, Duration};
@@ -28,9 +29,9 @@ pub async fn run(
     let mut chunks = chunk_bytes(&data, cfg.chunk_size);
     let meta = FileMeta::new(&data, cfg.chunk_size, &chunks);
 
-    let mut chunk_store: HashMap<u64, Chunk> = HashMap::new();
+    let mut chunk_store: HashMap<u64, Arc<Chunk>> = HashMap::new();
     for chunk in &chunks {
-        chunk_store.insert(chunk.index, chunk.clone());
+        chunk_store.insert(chunk.index, Arc::new(chunk.clone()));
     }
 
     info!("sending metadata");
@@ -56,7 +57,7 @@ pub async fn run(
             if let Some(chunk) = chunk_store.get(&index) {
                 debug!(index, "resending chunk");
                 let bytes = bincode::serialize(
-                    &NetMessage::Chunk(chunk.clone())
+                    &NetMessage::Chunk(chunk.as_ref().clone())
                 )?;
 
                 socket.send_to(&bytes, receiver_addr).await?;
