@@ -53,9 +53,20 @@ pub async fn run(
     let mut state = ReceiverState::new();
 
     let mut buf = [0u8; 2048];
+    let idle = std::time::Duration::from_millis(cfg.idle_timeout_ms);
 
     loop {
-        let (len, _) = socket.recv_from(&mut buf).await?;
+        let recv = tokio::time::timeout(idle, socket.recv_from(&mut buf)).await;
+        let (len, _) = match recv {
+            Ok(res) => res?,
+            Err(_) => {
+                request_missing(&mut state, &socket, sender_addr, &cfg).await?;
+                if all_attempts_exhausted(&state, &cfg) {
+                    return Err(crate::error::NetError::RetriesExhausted);
+                }
+                continue;
+            }
+        };
 
         let msg: NetMessage = bincode::deserialize(&buf[..len])?;
 
