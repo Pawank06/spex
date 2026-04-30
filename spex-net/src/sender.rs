@@ -49,8 +49,17 @@ pub async fn run(
     }
 
     let mut buf = [0u8; 2048];
+    let idle = Duration::from_millis(cfg.idle_timeout_ms);
     loop {
-        let (len, _) = socket.recv_from(&mut buf).await?;
+        let recv = tokio::time::timeout(idle, socket.recv_from(&mut buf)).await;
+        let (len, _) = match recv {
+            Ok(res) => res?,
+            Err(_) => {
+                info!("sender idle timeout, exiting");
+                return Ok(());
+            }
+        };
+
         let msg: NetMessage = bincode::deserialize(&buf[..len])?;
 
         if let NetMessage::RequestChunk { index } = msg {

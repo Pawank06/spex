@@ -6,6 +6,7 @@ pub struct Config {
     pub send_delay_ms: u64,
     pub retry_after_ms: u64,
     pub max_retries: u32,
+    pub idle_timeout_ms: u64,
 }
 
 impl Default for Config {
@@ -15,6 +16,7 @@ impl Default for Config {
             send_delay_ms: 50,
             retry_after_ms: 200,
             max_retries: 5,
+            idle_timeout_ms: 5_000,
         }
     }
 }
