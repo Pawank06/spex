@@ -26,7 +26,7 @@ pub async fn run(
 ) -> Result<()> {
     let data = read_file(&path)?;
 
-    let mut chunks = chunk_bytes(&data, cfg.chunk_size);
+    let chunks = chunk_bytes(&data, cfg.chunk_size);
     let meta = FileMeta::new(&data, cfg.chunk_size, &chunks);
 
     let mut chunk_store: HashMap<u64, Arc<Chunk>> = HashMap::new();
@@ -34,15 +34,17 @@ pub async fn run(
         chunk_store.insert(chunk.index, Arc::new(chunk.clone()));
     }
 
-    info!("sending metadata");
+    info!(total = meta.total_chunks, "sending metadata");
     let meta_bytes = bincode::serialize(&NetMessage::FileMeta(meta))?;
     socket.send_to(&meta_bytes, receiver_addr).await?;
 
-    chunks.shuffle(&mut thread_rng());
+    let mut order: Vec<u64> = (0..chunks.len() as u64).collect();
+    order.shuffle(&mut thread_rng());
 
-    for chunk in chunks {
-        debug!(index = chunk.index, "sending chunk");
-        let bytes = bincode::serialize(&NetMessage::Chunk(chunk))?;
+    for index in order {
+        let chunk = chunk_store.get(&index).expect("chunk in store");
+        debug!(index, "sending chunk");
+        let bytes = bincode::serialize(&NetMessage::Chunk(chunk.as_ref().clone()))?;
         socket.send_to(&bytes, receiver_addr).await?;
 
         sleep(Duration::from_millis(cfg.send_delay_ms)).await;
