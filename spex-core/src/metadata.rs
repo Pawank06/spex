@@ -40,4 +40,14 @@ mod tests {
         assert_eq!(meta.total_chunks, chunks.len() as u64);
         assert_eq!(meta.file_size, data.len() as u64);
     }
+
+    #[test]
+    fn metadata_changes_with_chunk_size() {
+        let data = b"hello world";
+        let small = FileMeta::new(data, 2, &chunks_bytes(data, 2));
+        let large = FileMeta::new(data, 8, &chunks_bytes(data, 8));
+
+        assert_ne!(small.total_chunks, large.total_chunks);
+        assert_eq!(small.file_size, large.file_size);
+    }
 }
