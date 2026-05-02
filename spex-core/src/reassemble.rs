@@ -1,13 +1,17 @@
 use crate::{chunk::{Chunk, chunks_bytes}, hash::hash_file, metadata::FileMeta};
 
-#[derive(Debug, PartialEq)] 
+/// Reasons reassembly may fail. Used by both `reassemble_chunks`
+/// and `reassemble_and_verify` so callers can react to specific failures.
+#[derive(Debug, PartialEq)]
 pub enum ReassembleError {
     EmptyInput,
-    MissingChunk { expected: u64, found: u64},
+    MissingChunk { expected: u64, found: u64 },
     DuplicateChunk { index: u64 },
-     FileHashMismatch,
+    FileHashMismatch,
 }
 
+/// Joins chunks back into the original byte stream after sorting by index.
+/// Returns an error if any expected index is missing or duplicated.
 pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassembleError> {
     if chunks.is_empty() {
         return Err(ReassembleError::EmptyInput);
@@ -37,6 +41,8 @@ pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassembleEr
     Ok(result)
 }
 
+/// Reassembles chunks and re-verifies file size and hash against `meta`.
+/// Use this when the chunks came from an untrusted source.
 pub fn reassemble_and_verify(
     meta: &FileMeta,
     chunks: Vec<Chunk>
