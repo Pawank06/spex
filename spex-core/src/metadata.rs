@@ -4,6 +4,8 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
+/// Header sent before any chunks: lets the receiver know how many
+/// chunks to expect and verify the result against `file_hash`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FileMeta {
     pub file_hash: Hash,
@@ -13,6 +15,7 @@ pub struct FileMeta {
 }
 
 impl FileMeta {
+    /// Builds metadata from the source file and the chunk view derived from it.
     pub fn new(file_bytes: &[u8], chunk_size: usize, chunks: &[Chunk]) -> Self {
         Self {
             file_hash: hash_file(chunks),
