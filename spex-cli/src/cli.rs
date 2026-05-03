@@ -20,6 +20,7 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Cmd {
+    /// Send a file to a peer
     Send {
         #[arg(long, default_value = "127.0.0.1:7001")]
         bind: String,
@@ -32,6 +33,7 @@ pub enum Cmd {
         #[arg(long, default_value_t = 50)]
         delay_ms: u64,
     },
+    /// Receive a file from a peer
     Recv {
         #[arg(long, default_value = "127.0.0.1:7002")]
         bind: String,
