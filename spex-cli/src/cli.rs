@@ -3,10 +3,19 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
-#[command(name = "spex", version, about = "streaming protocol experiment")]
+#[command(
+    name = "spex",
+    version,
+    about = "streaming protocol experiment",
+    long_about = "Send and receive files over UDP with chunking, hashing, and retransmission."
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub cmd: Cmd,
+
+    /// Increase log verbosity (-v info, -vv debug)
+    #[arg(short, long, action = clap::ArgAction::Count, global = true)]
+    pub verbose: u8,
 }
 
 #[derive(Subcommand, Debug)]

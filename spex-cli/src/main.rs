@@ -9,14 +9,20 @@ use spex_net::{receiver, sender};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Cli::parse();
+
+    let default_filter = match args.verbose {
+        0 => "warn",
+        1 => "info",
+        _ => "debug",
+    };
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(default_filter)),
         )
         .init();
-
-    let args = Cli::parse();
 
     match args.cmd {
         Cmd::Send {
