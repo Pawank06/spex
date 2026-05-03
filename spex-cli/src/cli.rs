@@ -43,3 +43,12 @@ pub enum Cmd {
         out: PathBuf,
     },
 }
+
+impl Cmd {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Cmd::Send { .. } => "send",
+            Cmd::Recv { .. } => "recv",
+        }
+    }
+}

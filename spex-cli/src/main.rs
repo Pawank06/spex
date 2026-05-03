@@ -10,6 +10,7 @@ use spex_net::{receiver, sender};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Cli::parse();
+    let cmd_name = args.cmd.name();
 
     let default_filter = match args.verbose {
         0 => "warn",
@@ -23,6 +24,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(default_filter)),
         )
         .init();
+
+    tracing::info!(command = cmd_name, "spex starting");
 
     match args.cmd {
         Cmd::Send {
