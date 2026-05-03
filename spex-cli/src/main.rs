@@ -32,6 +32,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             chunk_size,
             delay_ms,
         } => {
+            if !file.exists() {
+                eprintln!("error: file not found: {}", file.display());
+                std::process::exit(2);
+            }
             let socket = UdpSocket::bind(&bind).await?;
             let peer_addr = peer.parse()?;
             let cfg = Config {
