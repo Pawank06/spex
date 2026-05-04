@@ -85,16 +85,7 @@ pub async fn run(
                 state.pending.remove(&chunk.index);
                 state.chunks.insert(chunk.index, chunk);
 
-                if let Some(meta) = &state.meta {
-                    info!(
-                        progress = format!(
-                            "{}/{}",
-                            state.chunks.len(),
-                            meta.total_chunks
-                        ),
-                        "chunk progress"
-                    );
-                }
+                log_progress(&state);
             }
 
             NetMessage::RequestChunk { .. } => {}
@@ -174,6 +165,16 @@ async fn request_missing(
     }
 
     Ok(())
+}
+
+fn log_progress(state: &ReceiverState) {
+    if let Some(meta) = &state.meta {
+        info!(
+            received = state.chunks.len(),
+            total = meta.total_chunks,
+            "chunk progress"
+        );
+    }
 }
 
 fn try_reassemble(state: &ReceiverState, out_path: &std::path::Path) -> Result<bool> {
