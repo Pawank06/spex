@@ -10,7 +10,7 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use tracing::{debug, info};
 
-use spex_core::chunk::{chunks_bytes as chunk_bytes, Chunk};
+use spex_core::chunk::{chunks_bytes, Chunk};
 use spex_core::io::read_file;
 use spex_core::metadata::FileMeta;
 
@@ -26,7 +26,7 @@ pub async fn run(
 ) -> Result<()> {
     let data = read_file(&path)?;
 
-    let chunks = chunk_bytes(&data, cfg.chunk_size);
+    let chunks = chunks_bytes(&data, cfg.chunk_size);
     let meta = FileMeta::new(&data, cfg.chunk_size, &chunks);
 
     let mut chunk_store: HashMap<u64, Arc<Chunk>> = HashMap::new();
