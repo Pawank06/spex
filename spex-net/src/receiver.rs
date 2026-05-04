@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use tokio::net::UdpSocket;
@@ -177,7 +177,7 @@ fn log_progress(state: &ReceiverState) {
     }
 }
 
-fn try_reassemble(state: &ReceiverState, out_path: &std::path::Path) -> Result<bool> {
+fn try_reassemble(state: &ReceiverState, out_path: &Path) -> Result<bool> {
     let meta = match &state.meta {
         Some(m) => m,
         None => return Ok(false),
