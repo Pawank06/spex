@@ -16,7 +16,7 @@ use spex_core::metadata::FileMeta;
 
 use crate::config::Config;
 use crate::error::Result;
-use crate::protocol::NetMessage;
+use crate::protocol::{NetMessage, MAX_DATAGRAM};
 
 pub async fn run(
     socket: UdpSocket,
@@ -50,7 +50,7 @@ pub async fn run(
         sleep(Duration::from_millis(cfg.send_delay_ms)).await;
     }
 
-    let mut buf = [0u8; 2048];
+    let mut buf = [0u8; MAX_DATAGRAM];
     let idle = Duration::from_millis(cfg.idle_timeout_ms);
     loop {
         let recv = tokio::time::timeout(idle, socket.recv_from(&mut buf)).await;

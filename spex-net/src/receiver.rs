@@ -14,7 +14,7 @@ use tracing::{debug, info, warn};
 
 use crate::config::Config;
 use crate::error::Result;
-use crate::protocol::NetMessage;
+use crate::protocol::{NetMessage, MAX_DATAGRAM};
 
 #[derive(Debug, Default)]
 pub struct PendingChunk {
@@ -52,7 +52,7 @@ pub async fn run(
 ) -> Result<()> {
     let mut state = ReceiverState::new();
 
-    let mut buf = [0u8; 2048];
+    let mut buf = [0u8; MAX_DATAGRAM];
     let idle = std::time::Duration::from_millis(cfg.idle_timeout_ms);
 
     loop {

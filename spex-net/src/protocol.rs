@@ -2,6 +2,10 @@ use serde::{Serialize, Deserialize};
 use spex_core::metadata::FileMeta;
 use spex_core::chunk::Chunk;
 
+/// Maximum size of a serialized `NetMessage`. Matches the receive buffer
+/// used in both the sender and receiver loops.
+pub const MAX_DATAGRAM: usize = 4096;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum NetMessage {
     FileMeta(FileMeta),
