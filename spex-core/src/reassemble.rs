@@ -17,19 +17,19 @@ pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassembleEr
         return Err(ReassembleError::EmptyInput);
     }
     chunks.sort_by_key(|item| item.index);
-    
-    let mut expected_index = 0;
-    
-    for chunk in &chunks {
+
+    for (expected_index, chunk) in chunks.iter().enumerate() {
+        let expected_index = expected_index as u64;
         if chunk.index < expected_index {
             return Err(ReassembleError::DuplicateChunk { index: chunk.index });
         }
-        
+
         if chunk.index != expected_index {
-            return  Err(ReassembleError::MissingChunk { expected: expected_index, found: chunk.index });
+            return Err(ReassembleError::MissingChunk {
+                expected: expected_index,
+                found: chunk.index,
+            });
         }
-        
-        expected_index += 1;
     }
     
     let mut result = Vec::new();

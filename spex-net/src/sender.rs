@@ -64,15 +64,12 @@ pub async fn run(
 
         let msg: NetMessage = bincode::deserialize(&buf[..len])?;
 
-        if let NetMessage::RequestChunk { index } = msg {
-            if let Some(chunk) = chunk_store.get(&index) {
-                debug!(index, "resending chunk");
-                let bytes = bincode::serialize(
-                    &NetMessage::Chunk(chunk.as_ref().clone())
-                )?;
-
-                socket.send_to(&bytes, receiver_addr).await?;
-            }
+        if let NetMessage::RequestChunk { index } = msg
+            && let Some(chunk) = chunk_store.get(&index)
+        {
+            debug!(index, "resending chunk");
+            let bytes = bincode::serialize(&NetMessage::Chunk(chunk.as_ref().clone()))?;
+            socket.send_to(&bytes, receiver_addr).await?;
         }
     }
 }
