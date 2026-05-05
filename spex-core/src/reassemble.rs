@@ -1,4 +1,8 @@
-use crate::{chunk::{Chunk, chunks_bytes}, hash::hash_file, metadata::FileMeta};
+use crate::{
+    chunk::{Chunk, chunks_bytes},
+    hash::hash_file,
+    metadata::FileMeta,
+};
 
 /// Reasons reassembly may fail. Used by both `reassemble_chunks`
 /// and `reassemble_and_verify` so callers can react to specific failures.
@@ -31,13 +35,13 @@ pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassembleEr
             });
         }
     }
-    
+
     let mut result = Vec::new();
-    
+
     for chunk in chunks {
         result.extend_from_slice(&chunk.data);
     }
-    
+
     Ok(result)
 }
 
@@ -45,22 +49,22 @@ pub fn reassemble_chunks(mut chunks: Vec<Chunk>) -> Result<Vec<u8>, ReassembleEr
 /// Use this when the chunks came from an untrusted source.
 pub fn reassemble_and_verify(
     meta: &FileMeta,
-    chunks: Vec<Chunk>
+    chunks: Vec<Chunk>,
 ) -> Result<Vec<u8>, ReassembleError> {
     let data = reassemble_chunks(chunks)?;
-    
+
     if data.len() as u64 != meta.file_size {
         return Err(ReassembleError::FileHashMismatch);
     }
-    
+
     let reconstructed_chunks = chunks_bytes(&data, meta.chunk_size);
-    
+
     let file_hash = hash_file(&reconstructed_chunks);
-    
+
     if file_hash != meta.file_hash {
-        return  Err(ReassembleError::FileHashMismatch);
+        return Err(ReassembleError::FileHashMismatch);
     }
-    
+
     Ok(data)
 }
 
@@ -72,9 +76,18 @@ mod tests {
     #[test]
     fn joins_data_from_chunks_in_correct_order() {
         let chunks = vec![
-            Chunk { index: 2, data: b"world".to_vec() },
-            Chunk { index: 0, data: b"hel".to_vec() },
-            Chunk { index: 1, data: b"lo ".to_vec() },
+            Chunk {
+                index: 2,
+                data: b"world".to_vec(),
+            },
+            Chunk {
+                index: 0,
+                data: b"hel".to_vec(),
+            },
+            Chunk {
+                index: 1,
+                data: b"lo ".to_vec(),
+            },
         ];
 
         let result = reassemble_chunks(chunks).unwrap();
@@ -94,24 +107,42 @@ mod tests {
     #[test]
     fn fails_when_chunk_is_missing() {
         let chunks = vec![
-            Chunk { index: 0, data: b"hel".to_vec() },
-            Chunk { index: 2, data: b"world".to_vec() },
+            Chunk {
+                index: 0,
+                data: b"hel".to_vec(),
+            },
+            Chunk {
+                index: 2,
+                data: b"world".to_vec(),
+            },
         ];
 
         let result = reassemble_chunks(chunks);
 
         assert!(matches!(
             result,
-            Err(ReassembleError::MissingChunk { expected: 1, found: 2 })
+            Err(ReassembleError::MissingChunk {
+                expected: 1,
+                found: 2
+            })
         ));
     }
 
     #[test]
     fn fails_on_duplicate_chunk() {
         let chunks = vec![
-            Chunk { index: 0, data: b"a".to_vec() },
-            Chunk { index: 1, data: b"b".to_vec() },
-            Chunk { index: 1, data: b"b".to_vec() },
+            Chunk {
+                index: 0,
+                data: b"a".to_vec(),
+            },
+            Chunk {
+                index: 1,
+                data: b"b".to_vec(),
+            },
+            Chunk {
+                index: 1,
+                data: b"b".to_vec(),
+            },
         ];
 
         let result = reassemble_chunks(chunks);
@@ -125,15 +156,24 @@ mod tests {
     #[test]
     fn fails_when_first_chunk_is_not_zero() {
         let chunks = vec![
-            Chunk { index: 1, data: b"lo ".to_vec() },
-            Chunk { index: 2, data: b"world".to_vec() },
+            Chunk {
+                index: 1,
+                data: b"lo ".to_vec(),
+            },
+            Chunk {
+                index: 2,
+                data: b"world".to_vec(),
+            },
         ];
 
         let result = reassemble_chunks(chunks);
 
         assert!(matches!(
             result,
-            Err(ReassembleError::MissingChunk { expected: 0, found: 1 })
+            Err(ReassembleError::MissingChunk {
+                expected: 0,
+                found: 1
+            })
         ));
     }
 }

@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use serde::{Serialize, Deserialize};
 
 /// SHA-256 digest used to identify and verify files and chunks.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

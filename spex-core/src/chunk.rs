@@ -1,10 +1,10 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// A single piece of a file, identified by its position in the original stream.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Chunk {
     pub index: u64,
-    pub data: Vec<u8>
+    pub data: Vec<u8>,
 }
 
 /// Splits `data` into fixed-size chunks. The last chunk may be shorter.
@@ -15,19 +15,18 @@ pub fn chunks_bytes(data: &[u8], chunk_size: usize) -> Vec<Chunk> {
             index: i as u64,
             data: slice.to_vec(),
         })
-        
         .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn splits_data_into_chunks() {
         let data = b"hello world";
         let chunks = chunks_bytes(data, 5);
-        
+
         assert_eq!(chunks.len(), 3);
         assert_eq!(chunks[0].data, b"hello");
         assert_eq!(chunks[1].data, b" worl");

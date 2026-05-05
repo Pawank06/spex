@@ -36,10 +36,22 @@ async fn happy_path_transfer() {
         idle_timeout_ms: 1_000,
     };
 
-    let s_task = tokio::spawn(sender::run(sender_sock, receiver_addr, in_path.clone(), cfg.clone()));
-    let r_task = tokio::spawn(receiver::run(receiver_sock, sender_addr, out_path.clone(), cfg));
+    let s_task = tokio::spawn(sender::run(
+        sender_sock,
+        receiver_addr,
+        in_path.clone(),
+        cfg.clone(),
+    ));
+    let r_task = tokio::spawn(receiver::run(
+        receiver_sock,
+        sender_addr,
+        out_path.clone(),
+        cfg,
+    ));
 
-    let _ = tokio::time::timeout(Duration::from_secs(5), r_task).await.unwrap();
+    let _ = tokio::time::timeout(Duration::from_secs(5), r_task)
+        .await
+        .unwrap();
     let _ = s_task.await;
 
     let read = std::fs::read(&out_path).unwrap();
@@ -67,10 +79,22 @@ async fn larger_payload_transfer() {
         idle_timeout_ms: 1_000,
     };
 
-    let s_task = tokio::spawn(sender::run(sender_sock, receiver_addr, in_path.clone(), cfg.clone()));
-    let r_task = tokio::spawn(receiver::run(receiver_sock, sender_addr, out_path.clone(), cfg));
+    let s_task = tokio::spawn(sender::run(
+        sender_sock,
+        receiver_addr,
+        in_path.clone(),
+        cfg.clone(),
+    ));
+    let r_task = tokio::spawn(receiver::run(
+        receiver_sock,
+        sender_addr,
+        out_path.clone(),
+        cfg,
+    ));
 
-    let _ = tokio::time::timeout(Duration::from_secs(10), r_task).await.unwrap();
+    let _ = tokio::time::timeout(Duration::from_secs(10), r_task)
+        .await
+        .unwrap();
     let _ = s_task.await;
 
     let read = std::fs::read(&out_path).unwrap();

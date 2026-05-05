@@ -1,6 +1,6 @@
-use serde::{Serialize, Deserialize};
-use spex_core::metadata::FileMeta;
+use serde::{Deserialize, Serialize};
 use spex_core::chunk::Chunk;
+use spex_core::metadata::FileMeta;
 
 /// Maximum size of a serialized `NetMessage`. Matches the receive buffer
 /// used in both the sender and receiver loops.
@@ -10,7 +10,7 @@ pub const MAX_DATAGRAM: usize = 4096;
 pub enum NetMessage {
     FileMeta(FileMeta),
     Chunk(Chunk),
-    RequestChunk { index: u64 }
+    RequestChunk { index: u64 },
 }
 
 #[cfg(test)]
@@ -31,7 +31,10 @@ mod tests {
 
     #[test]
     fn chunk_roundtrips() {
-        let chunk = Chunk { index: 3, data: b"abc".to_vec() };
+        let chunk = Chunk {
+            index: 3,
+            data: b"abc".to_vec(),
+        };
         let msg = NetMessage::Chunk(chunk.clone());
         let bytes = bincode::serialize(&msg).unwrap();
         let decoded: NetMessage = bincode::deserialize(&bytes).unwrap();

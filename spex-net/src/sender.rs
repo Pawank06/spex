@@ -4,19 +4,19 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use tokio::net::UdpSocket;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use tracing::{debug, info};
 
-use spex_core::chunk::{chunks_bytes, Chunk};
+use spex_core::chunk::{Chunk, chunks_bytes};
 use spex_core::io::read_file;
 use spex_core::metadata::FileMeta;
 
 use crate::config::Config;
 use crate::error::Result;
-use crate::protocol::{NetMessage, MAX_DATAGRAM};
+use crate::protocol::{MAX_DATAGRAM, NetMessage};
 
 pub async fn run(
     socket: UdpSocket,

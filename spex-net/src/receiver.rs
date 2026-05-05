@@ -14,7 +14,7 @@ use tracing::{debug, info, warn};
 
 use crate::config::Config;
 use crate::error::Result;
-use crate::protocol::{NetMessage, MAX_DATAGRAM};
+use crate::protocol::{MAX_DATAGRAM, NetMessage};
 
 #[derive(Debug, Default)]
 pub struct PendingChunk {
