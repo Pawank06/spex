@@ -38,3 +38,7 @@ Use `-v` for info logs and `-vv` for debug logs.
 ```sh
 cargo test --all
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
