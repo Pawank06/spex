@@ -485,7 +485,7 @@ dependencies = [
 
 [[package]]
 name = "spex-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap",
  "spex-core",
@@ -497,7 +497,7 @@ dependencies = [
 
 [[package]]
 name = "spex-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bincode",
  "serde",
@@ -506,7 +506,7 @@ dependencies = [
 
 [[package]]
 name = "spex-net"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bincode",
  "rand",
