@@ -1,1 +1,5 @@
 /target
+.DS_Store
+spex_test_*.bin
+spex_io_test.bin
+*.swp
