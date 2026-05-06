@@ -16,3 +16,25 @@ out-of-order delivery, and selective retransmission.
 ```sh
 cargo build
 ```
+
+## Usage
+
+In one terminal, start the receiver:
+
+```sh
+cargo run -p spex-cli -- recv --bind 127.0.0.1:7002 --peer 127.0.0.1:7001 --out out.bin
+```
+
+In another, send a file:
+
+```sh
+cargo run -p spex-cli -- send --bind 127.0.0.1:7001 --peer 127.0.0.1:7002 --file in.bin
+```
+
+Use `-v` for info logs and `-vv` for debug logs.
+
+## Testing
+
+```sh
+cargo test --all
+```
